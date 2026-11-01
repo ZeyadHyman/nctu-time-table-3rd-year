@@ -11,22 +11,22 @@ export type DayNum = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface ClassEntry {
   id: string;
-  subject: string; // subject key
+  subject: string;
   instructor: string;
   room: string;
   day: DayNum;
-  start: string; // "HH:MM"
-  end: string; // "HH:MM"
+  start: string;
+  end: string;
   type: ClassKind;
-  sections: SectionId[]; // empty = general / applies to everyone
+  sections: SectionId[];
   notes?: string;
 }
 
 export interface TimeFilter {
   mode: "all" | "morning" | "afternoon" | "range" | "start-after" | "end-before";
-  value?: string; // for start-after / end-before
-  from?: string; // for range
-  to?: string; // for range
+  value?: string;
+  from?: string;
+  to?: string;
 }
 
 export interface Filters {
@@ -49,10 +49,30 @@ export interface DisplayPrefs {
   showType: boolean;
   showSection: boolean;
   showTime: boolean;
+  showCombined: boolean;
+  sortBy: "time" | "subject";
   hiddenSubjects: string[];
   hiddenInstructors: string[];
   hiddenDays: DayNum[];
   dayOrder: DayNum[];
+}
+
+export interface Settings {
+  language: "en" | "ar";
+  defaultView: "grid" | "list";
+  defaultDay: DayNum | "today";
+  defaultSection: SectionView;
+  weekStart: "saturday" | "sunday";
+  timeFormat: "12" | "24";
+  accent: string;
+  density: "compact" | "comfortable";
+  fontSize: "sm" | "md" | "lg";
+  subjectColors: Record<string, string>;
+  rememberFilters: boolean;
+  rememberSection: boolean;
+  autoApplyViews: boolean;
+  animations: boolean;
+  defaultFilters: Filters | null;
 }
 
 export interface SavedView {
@@ -104,14 +124,14 @@ export const SLOTS: [string, string][] = [
 ];
 
 export const SUBJECTS: Record<string, { name: string; color: string }> = {
-  graphics: { name: "Computer Graphics", color: "var(--sun)" },
-  datacomm: { name: "Data Communication", color: "var(--blue)" },
-  arch: { name: "Computer Architecture", color: "var(--peach)" },
-  micro: { name: "Microprocessor", color: "var(--mint)" },
-  java: { name: "Java Programming II", color: "var(--tomato)" },
-  cprog: { name: "Advanced Programming in C", color: "var(--pink)" },
-  ccna: { name: "CCNA R&S II", color: "var(--violet)" },
-  netadmin: { name: "Network Admin", color: "var(--sky)" },
+  graphics: { name: "Computer Graphics", color: "#ffd23a" },
+  datacomm: { name: "Data Communication", color: "#5d86ff" },
+  arch: { name: "Computer Architecture", color: "#ff9f45" },
+  micro: { name: "Microprocessor", color: "#4fe0a0" },
+  java: { name: "Java Programming II", color: "#ff5a3c" },
+  cprog: { name: "Advanced Programming in C", color: "#ff9fd0" },
+  ccna: { name: "CCNA R&S II", color: "#b39cff" },
+  netadmin: { name: "Network Admin", color: "#5fd4e6" },
 };
 
 export const DEFAULT_PREFS: DisplayPrefs = {
@@ -121,10 +141,30 @@ export const DEFAULT_PREFS: DisplayPrefs = {
   showType: true,
   showSection: true,
   showTime: true,
+  showCombined: true,
+  sortBy: "time",
   hiddenSubjects: [],
   hiddenInstructors: [],
   hiddenDays: [],
   dayOrder: [6, 0, 1, 2, 3],
+};
+
+export const DEFAULT_SETTINGS: Settings = {
+  language: "en",
+  defaultView: "grid",
+  defaultDay: "today",
+  defaultSection: "full",
+  weekStart: "saturday",
+  timeFormat: "12",
+  accent: "#ffd23a",
+  density: "comfortable",
+  fontSize: "md",
+  subjectColors: {},
+  rememberFilters: true,
+  rememberSection: true,
+  autoApplyViews: false,
+  animations: true,
+  defaultFilters: null,
 };
 
 export const EMPTY_FILTERS: Filters = {

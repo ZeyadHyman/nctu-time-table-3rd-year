@@ -1,29 +1,41 @@
-export function ConfirmDialog({
-  title,
-  message,
-  confirmLabel = "Confirm",
-  danger,
-  onConfirm,
-  onCancel,
-}: {
+import { useEffect } from "react";
+import { useT } from "../i18n";
+
+interface Props {
   title: string;
-  message: string;
+  body: string;
   confirmLabel?: string;
   danger?: boolean;
   onConfirm: () => void;
-  onCancel: () => void;
-}) {
+  onClose: () => void;
+}
+
+export function ConfirmDialog({ title, body, confirmLabel, danger, onConfirm, onClose }: Props) {
+  const t = useT();
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
-    <div className="overlay" onClick={onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" role="alertdialog" aria-modal="true" style={{ width: 440 }}>
         <h3>{title}</h3>
-        <p style={{ color: "var(--soft)", fontSize: "0.92rem" }}>{message}</p>
+        <p className="body">{body}</p>
         <div className="modal-actions">
-          <button className="btn" onClick={onCancel}>
-            Cancel
+          <button className="btn" onClick={onClose}>
+            {t("common.cancel")}
           </button>
-          <button className={"btn " + (danger ? "danger" : "primary")} onClick={onConfirm}>
-            {confirmLabel}
+          <button
+            className={"btn " + (danger ? "btn-danger" : "btn-primary")}
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+          >
+            {confirmLabel ?? t("common.confirm")}
           </button>
         </div>
       </div>

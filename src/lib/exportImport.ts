@@ -119,6 +119,8 @@ function defaultPrefs(): DisplayPrefs {
     showType: true,
     showSection: true,
     showTime: true,
+    showCombined: true,
+    sortBy: "time",
     hiddenSubjects: [],
     hiddenInstructors: [],
     hiddenDays: [],

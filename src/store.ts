@@ -7,8 +7,9 @@ import type {
   Filters,
   SavedView,
   SectionView,
+  Settings,
 } from "./types";
-import { DEFAULT_PREFS, EMPTY_FILTERS } from "./types";
+import { DEFAULT_PREFS, DEFAULT_SETTINGS, EMPTY_FILTERS } from "./types";
 import { SEED_CLASSES } from "./data/seed";
 import { overlaps } from "./lib/filtering";
 
@@ -19,6 +20,7 @@ interface TimetableState {
   filters: Filters;
   section: SectionView;
   prefs: DisplayPrefs;
+  settings: Settings;
   savedViews: SavedView[];
   activeViewId: string | null;
   editMode: boolean;
@@ -28,13 +30,15 @@ interface TimetableState {
   resetFilters: () => void;
   setSection: (s: SectionView) => void;
   setPrefs: (p: Partial<DisplayPrefs>) => void;
+  setSettings: (s: Partial<Settings>) => void;
+  resetSettings: () => void;
   setEditMode: (on: boolean) => void;
   setTheme: (t: "dark" | "light" | null) => void;
 
   addClass: (c: Omit<ClassEntry, "id">) => ClassEntry;
   updateClass: (id: string, patch: Partial<Omit<ClassEntry, "id">>) => void;
   deleteClass: (id: string) => void;
-  duplicateClass: (id: string, patch?: Partial<Omit<ClassEntry, "id" | "id">>) => ClassEntry | null;
+  duplicateClass: (id: string, patch?: Partial<Omit<ClassEntry, "id">>) => ClassEntry | null;
   moveClass: (id: string, day: DayNum, start: string, end: string) => void;
   replaceAllClasses: (classes: ClassEntry[]) => void;
   restoreSeed: () => void;
@@ -46,6 +50,7 @@ interface TimetableState {
   renameView: (id: string, name: string) => void;
   duplicateView: (id: string) => void;
   deleteView: (id: string) => void;
+  clearViews: () => void;
   clearActiveView: () => void;
 }
 
@@ -64,6 +69,7 @@ export const useStore = create<TimetableState>()(
       filters: { ...EMPTY_FILTERS },
       section: "full",
       prefs: { ...DEFAULT_PREFS },
+      settings: { ...DEFAULT_SETTINGS },
       savedViews: [],
       activeViewId: null,
       editMode: false,
@@ -71,7 +77,13 @@ export const useStore = create<TimetableState>()(
       canUndo: false,
 
       setFilters: (f) => set((s) => ({ filters: { ...s.filters, ...f }, activeViewId: null })),
-      resetFilters: () => set({ filters: { ...EMPTY_FILTERS, time: { mode: "all" } } }),
+      resetFilters: () =>
+        set((s) => ({
+          filters: s.settings.defaultFilters
+            ? { ...s.settings.defaultFilters, time: { ...s.settings.defaultFilters.time } }
+            : { ...EMPTY_FILTERS, time: { mode: "all" } },
+          activeViewId: null,
+        })),
       setSection: (section) => set({ section, activeViewId: null }),
       setPrefs: (p) =>
         set((s) => ({
@@ -81,6 +93,12 @@ export const useStore = create<TimetableState>()(
                 v.id === s.activeViewId ? { ...v, prefs: { ...v.prefs, ...p } } : v,
               )
             : s.savedViews,
+        })),
+      setSettings: (partial) =>
+        set((s) => ({ settings: { ...s.settings, ...partial } })),
+      resetSettings: () =>
+        set((s) => ({
+          settings: { ...DEFAULT_SETTINGS, language: s.settings.language },
         })),
       setEditMode: (editMode) => set({ editMode }),
       setTheme: (theme) => set({ theme }),
@@ -159,7 +177,13 @@ export const useStore = create<TimetableState>()(
       duplicateView: (id) => {
         const v = get().savedViews.find((x) => x.id === id);
         if (!v) return;
-        const copy: SavedView = { ...v, id: uid(), name: v.name + " (copy)", filters: { ...v.filters }, prefs: { ...v.prefs } };
+        const copy: SavedView = {
+          ...v,
+          id: uid(),
+          name: v.name + " (copy)",
+          filters: { ...v.filters },
+          prefs: { ...v.prefs },
+        };
         set((s) => ({ savedViews: [...s.savedViews, copy] }));
       },
       deleteView: (id) =>
@@ -167,6 +191,7 @@ export const useStore = create<TimetableState>()(
           savedViews: s.savedViews.filter((v) => v.id !== id),
           activeViewId: s.activeViewId === id ? null : s.activeViewId,
         })),
+      clearViews: () => set({ savedViews: [], activeViewId: null }),
       clearActiveView: () => set({ activeViewId: null }),
     }),
     {
@@ -176,10 +201,23 @@ export const useStore = create<TimetableState>()(
         filters: s.filters,
         section: s.section,
         prefs: s.prefs,
+        settings: s.settings,
         savedViews: s.savedViews,
         activeViewId: s.activeViewId,
         theme: s.theme,
       }),
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<TimetableState>;
+        return {
+          ...current,
+          ...p,
+          settings: { ...DEFAULT_SETTINGS, ...(p.settings ?? {}) },
+          prefs: { ...DEFAULT_PREFS, ...(p.prefs ?? {}) },
+          filters: { ...EMPTY_FILTERS, ...(p.filters ?? {}) },
+          editMode: false,
+          canUndo: false,
+        };
+      },
     },
   ),
 );

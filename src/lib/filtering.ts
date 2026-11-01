@@ -1,12 +1,15 @@
-import type {
-  ClassEntry,
-  ClassKind,
-  DayNum,
-  Filters,
-  SectionId,
-  SectionView,
-} from "../types";
-import { DAY_BY_NUM, SECTION_LABELS, SUBJECTS } from "../types";
+import type { ClassEntry, DayNum, Filters, SectionId, SectionView } from "../types";
+import { DAY_BY_NUM, SECTION_LABELS, SUBJECTS, KIND_LABELS } from "../types";
+
+/* ---------- locale-sensitive formatting (set by App each render) ---------- */
+let timeFormat: "12" | "24" = "12";
+let lang: "en" | "ar" = "en";
+export function setTimeFormat(f: "12" | "24") {
+  timeFormat = f;
+}
+export function setLang(l: "en" | "ar") {
+  lang = l;
+}
 
 export const mins = (s: string): number => {
   const [h, m] = s.split(":").map(Number);
@@ -16,7 +19,8 @@ export const mins = (s: string): number => {
 export const fmtMin = (m: number): string => {
   const h = Math.floor(m / 60);
   const r = m % 60;
-  const ap = h >= 12 ? "PM" : "AM";
+  if (timeFormat === "24") return `${String(h).padStart(2, "0")}:${String(r).padStart(2, "0")}`;
+  const ap = h >= 12 ? (lang === "ar" ? "م" : "PM") : lang === "ar" ? "ص" : "AM";
   return `${h % 12 || 12}:${String(r).padStart(2, "0")} ${ap}`;
 };
 
@@ -25,7 +29,9 @@ export const fmtTime = (s: string): string => fmtMin(mins(s));
 export const fmtDur = (m: number): string => {
   const h = Math.floor(m / 60);
   const r = m % 60;
-  return h ? h + "h" + (r ? " " + r + "m" : "") : r + "m";
+  const hs = lang === "ar" ? "س" : "h";
+  const ms = lang === "ar" ? "د" : "m";
+  return h ? h + hs + (r ? " " + r + ms : "") : r + ms;
 };
 
 export const isLive = (c: ClassEntry, now = new Date()): boolean => {
@@ -36,15 +42,13 @@ export const isLive = (c: ClassEntry, now = new Date()): boolean => {
 /** Does this class belong to a given section view? */
 export function matchesSection(c: ClassEntry, section: SectionView): boolean {
   if (section === "full") return true;
-  // Combined / general lectures (all sections or unassigned) are always visible.
   if (c.sections.length === 0) return true;
   return c.sections.includes(section);
 }
 
-/** Multi-select section filter: keep class if it matches ANY selected section. */
 function matchesSectionFilter(c: ClassEntry, selected: SectionId[]): boolean {
   if (selected.length === 0) return true;
-  if (c.sections.length === 0) return true; // general lecture visible for any pick
+  if (c.sections.length === 0) return true;
   return c.sections.some((s) => selected.includes(s));
 }
 
@@ -70,7 +74,29 @@ function matchesTime(c: ClassEntry, f: Filters["time"]): boolean {
   }
 }
 
-/** Section label shown on a card, e.g. "Sections 2 & 3". */
+/** Structured section label key for i18n mapping. */
+export type SectionLabelKey =
+  | "all"
+  | "practical"
+  | "lecture-section"
+  | "network"
+  | "general"
+  | `one:${SectionId}`
+  | `multi:${string}`;
+
+export function sectionLabelKey(c: ClassEntry): SectionLabelKey {
+  if (c.type === "combined") return "all";
+  if (c.sections.length === 0) {
+    if (c.type === "practical") return "practical";
+    if (c.type === "lecture-section") return "lecture-section";
+    if (c.type === "network-section") return "network";
+    return "general";
+  }
+  if (c.sections.length === 1) return `one:${c.sections[0]}`;
+  return `multi:${c.sections.join(",")}`;
+}
+
+/** Plain-English section label (fallback / export). */
 export function sectionLabel(c: ClassEntry): string {
   if (c.type === "combined") return "All Sections";
   if (c.sections.length === 0) {
@@ -95,12 +121,19 @@ export function overlaps(a: ClassEntry, b: ClassEntry): boolean {
   return a.day === b.day && mins(a.start) < mins(b.end) && mins(b.start) < mins(a.end);
 }
 
+export interface HiddenOpts {
+  subjects: string[];
+  instructors: string[];
+  days: DayNum[];
+  hideCombined?: boolean;
+}
+
 /** Full pipeline: section view + all filters + customization hiding. */
 export function filterClasses(
   classes: ClassEntry[],
   section: SectionView,
   filters: Filters,
-  hidden: { subjects: string[]; instructors: string[]; days: DayNum[] },
+  hidden: HiddenOpts,
 ): ClassEntry[] {
   const q = filters.search.trim().toLowerCase();
   return classes.filter((c) => {
@@ -108,6 +141,7 @@ export function filterClasses(
     if (hidden.subjects.includes(c.subject)) return false;
     if (hidden.instructors.includes(c.instructor)) return false;
     if (hidden.days.includes(c.day)) return false;
+    if (hidden.hideCombined && c.type === "combined") return false;
 
     if (filters.days.length && !filters.days.includes(c.day)) return false;
     if (filters.subjects.length && !filters.subjects.includes(c.subject)) return false;
@@ -122,8 +156,8 @@ export function filterClasses(
         SUBJECTS[c.subject]?.name ?? c.subject,
         c.instructor,
         c.room,
-        kindLabel(c),
-        sectionLabel(c),
+        c.type,
+        c.sections.join(" "),
         c.notes ?? "",
         DAY_BY_NUM(c.day).name,
       ]
@@ -148,33 +182,23 @@ export function countActiveFilters(f: Filters): number {
   return n;
 }
 
-export function collectFacets(classes: ClassEntry[]) {
-  const instructors = new Set<string>();
-  const rooms = new Set<string>();
-  classes.forEach((c) => {
-    instructors.add(c.instructor);
-    rooms.add(c.room);
-  });
-  return {
-    instructors: [...instructors].sort(),
-    rooms: [...rooms].sort(),
-  };
-}
-
 export interface Stats {
   total: number;
   hours: number;
-  perSubject: { key: string; name: string; color: string; count: number; minutes: number }[];
-  perDay: { day: DayNum; name: string; count: number; minutes: number }[];
+  instructors: number;
+  perSubject: { key: string; count: number; minutes: number }[];
+  perDay: { day: DayNum; count: number; minutes: number }[];
 }
 
 export function computeStats(classes: ClassEntry[]): Stats {
   const perSubject = new Map<string, { count: number; minutes: number }>();
   const perDay = new Map<DayNum, { count: number; minutes: number }>();
+  const instructors = new Set<string>();
   let minutes = 0;
   classes.forEach((c) => {
     const dur = mins(c.end) - mins(c.start);
     minutes += dur;
+    instructors.add(c.instructor);
     const s = perSubject.get(c.subject) ?? { count: 0, minutes: 0 };
     s.count++;
     s.minutes += dur;
@@ -187,16 +211,12 @@ export function computeStats(classes: ClassEntry[]): Stats {
   return {
     total: classes.length,
     hours: Math.round((minutes / 60) * 10) / 10,
+    instructors: instructors.size,
     perSubject: [...perSubject.entries()]
-      .map(([key, v]) => ({
-        key,
-        name: SUBJECTS[key]?.name ?? key,
-        color: SUBJECTS[key]?.color ?? "var(--mark)",
-        ...v,
-      }))
+      .map(([key, v]) => ({ key, ...v }))
       .sort((a, b) => b.minutes - a.minutes),
     perDay: [...perDay.entries()]
-      .map(([day, v]) => ({ day, name: DAY_BY_NUM(day).name, ...v }))
+      .map(([day, v]) => ({ day, ...v }))
       .sort((a, b) => a.day - b.day),
   };
 }
@@ -210,10 +230,17 @@ export function nextClass(classes: ClassEntry[], now = new Date()): ClassEntry |
   return todays.find((c) => mins(c.start) > nm) ?? null;
 }
 
-export const classTypes: ClassKind[] = [
+export const classTypes: import("../types").ClassKind[] = [
   "combined",
   "practical",
   "lecture-section",
   "network-section",
   "individual-section",
 ];
+
+/** Resolve a subject's display color (settings override first). */
+export function subjectColor(key: string, overrides?: Record<string, string>): string {
+  return overrides?.[key] ?? SUBJECTS[key]?.color ?? "#ffd23a";
+}
+
+export { KIND_LABELS, SECTION_LABELS };
