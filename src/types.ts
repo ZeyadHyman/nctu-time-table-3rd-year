@@ -1,5 +1,16 @@
 export type SectionId = "1" | "2" | "3" | "4" | "5" | "network";
 
+export type Department = "software" | "network" | "both";
+export type DeptFilter = "all" | "software" | "network";
+export type AttendanceStatus = "attended" | "missed" | "excused";
+
+export interface Profile {
+  onboarded: boolean;
+  department: "software" | "network";
+  subjects: string[];
+  sessions: string[];
+}
+
 export type ClassKind =
   | "combined"
   | "practical"
@@ -19,7 +30,23 @@ export interface ClassEntry {
   end: string;
   type: ClassKind;
   sections: SectionId[];
+  dept?: Department;
   notes?: string;
+}
+
+export const DEFAULT_DEPT: Record<string, Department> = {
+  graphics: "software",
+  arch: "software",
+  micro: "software",
+  java: "software",
+  cprog: "software",
+  datacomm: "both",
+  ccna: "network",
+  netadmin: "network",
+};
+
+export function classDept(c: ClassEntry): Department {
+  return c.dept ?? DEFAULT_DEPT[c.subject] ?? "both";
 }
 
 export interface TimeFilter {
@@ -38,6 +65,7 @@ export interface Filters {
   types: ClassKind[];
   time: TimeFilter;
   search: string;
+  dept: DeptFilter;
 }
 
 export type SectionView = "full" | SectionId;
@@ -176,4 +204,12 @@ export const EMPTY_FILTERS: Filters = {
   types: [],
   time: { mode: "all" },
   search: "",
+  dept: "all",
+};
+
+export const DEFAULT_PROFILE: Profile = {
+  onboarded: false,
+  department: "software",
+  subjects: [],
+  sessions: [],
 };

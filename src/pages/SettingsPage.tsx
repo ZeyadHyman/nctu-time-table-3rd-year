@@ -9,7 +9,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Icon } from "../components/Icon";
 
 type Tab = "general" | "appearance" | "timetable" | "data" | "a11y";
-type ModalState =
+  type ModalState =
   | { kind: "restore" }
   | { kind: "clearViews" }
   | { kind: "resetSettings" }
@@ -17,7 +17,7 @@ type ModalState =
 
 const ACCENTS = ["#ffd23a", "#5d86ff", "#4fe0a0", "#ff5a3c", "#b39cff", "#ff9f45", "#5fd4e6", "#ff9fd0"];
 
-export function SettingsPage() {
+export function SettingsPage({ go }: { go: (h: string) => void }) {
   const t = useT();
   const settings = useStore((s) => s.settings);
   const setSettings = useStore((s) => s.setSettings);
@@ -38,6 +38,8 @@ export function SettingsPage() {
   const [tab, setTab] = useState<Tab>("general");
   const [modal, setModal] = useState<ModalState>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const profile = useStore((s) => s.profile);
+  const setProfile = useStore((s) => s.setProfile);
 
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => setSettings({ [k]: v } as never);
 
@@ -167,6 +169,33 @@ export function SettingsPage() {
               />
             }
           />
+          <div className="set-row">
+            <div className="info">
+              <b>{t("profile.title")}</b>
+              <span>
+                {t("profile.department")}: {t(`dept.${profile.department}`)} ·{" "}
+                {profile.subjects.length} {t("common.subjectsCount")} ·{" "}
+                {profile.sessions.length} {t("profile.sessions")}
+                {profile.onboarded ? "" : ` · ${t("profile.notSet")}`}
+              </span>
+            </div>
+            <div className="ctrl">
+              <button className="btn btn-sm btn-primary" onClick={() => go("#/onboarding")}>
+                <Icon.pencil size={14} />
+                {t("profile.edit")}
+              </button>
+              <button
+                className="btn btn-sm"
+                onClick={() => {
+                  setProfile({ onboarded: false });
+                  go("#/onboarding");
+                }}
+              >
+                <Icon.refresh size={14} />
+                {t("profile.restart")}
+              </button>
+            </div>
+          </div>
           <SettingRow
             title={t("settings.rememberSection")}
             desc={t("settings.rememberSectionDesc")}

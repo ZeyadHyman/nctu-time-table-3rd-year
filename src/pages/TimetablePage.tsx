@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import type { ClassEntry, SectionView } from "../types";
+import type { ClassEntry, DeptFilter, SectionView } from "../types";
 import { SECTION_IDS } from "../types";
 import {
   countActiveFilters,
@@ -7,6 +7,7 @@ import {
   fmtDur,
   mins,
 } from "../lib/filtering";
+import { applyProfile } from "../lib/personal";
 import { useStore } from "../store";
 import { useT } from "../i18n";
 import { toast } from "../toast";
@@ -35,6 +36,7 @@ export function TimetablePage() {
   const setSection = useStore((s) => s.setSection);
   const prefs = useStore((s) => s.prefs);
   const setPrefs = useStore((s) => s.setPrefs);
+  const profile = useStore((s) => s.profile);
   const editMode = useStore((s) => s.editMode);
   const setEditMode = useStore((s) => s.setEditMode);
   const undo = useStore((s) => s.undo);
@@ -50,16 +52,15 @@ export function TimetablePage() {
   const [selectedDay, setSelectedDay] = useState<DayNum | "today">("today");
   const gridRef = useRef<HTMLDivElement>(null);
 
-  const visible = useMemo(
-    () =>
-      filterClasses(classes, section, filters, {
-        subjects: prefs.hiddenSubjects,
-        instructors: prefs.hiddenInstructors,
-        days: prefs.hiddenDays,
-        hideCombined: !prefs.showCombined,
-      }),
-    [classes, section, filters, prefs.hiddenSubjects, prefs.hiddenInstructors, prefs.hiddenDays, prefs.showCombined],
-  );
+  const visible = useMemo(() => {
+    const filtered = filterClasses(classes, section, filters, {
+      subjects: prefs.hiddenSubjects,
+      instructors: prefs.hiddenInstructors,
+      days: prefs.hiddenDays,
+      hideCombined: !prefs.showCombined,
+    });
+    return profile.onboarded ? applyProfile(filtered, profile) : filtered;
+  }, [classes, section, filters, prefs.hiddenSubjects, prefs.hiddenInstructors, prefs.hiddenDays, prefs.showCombined, profile]);
 
   const activeFilters = countActiveFilters(filters);
   const totalMinutes = visible.reduce((a, c) => a + (mins(c.end) - mins(c.start)), 0);
@@ -204,7 +205,7 @@ export function TimetablePage() {
                   setFilters({ days: filters.days.filter((x) => x !== d) })
                 }
               >
-                ×
+                <Icon.x size={10} />
               </button>
             </span>
           ))}
@@ -217,7 +218,7 @@ export function TimetablePage() {
                   setFilters({ subjects: filters.subjects.filter((x) => x !== s) })
                 }
               >
-                ×
+                <Icon.x size={10} />
               </button>
             </span>
           ))}
@@ -230,7 +231,7 @@ export function TimetablePage() {
                   setFilters({ sections: filters.sections.filter((x) => x !== s) })
                 }
               >
-                ×
+                <Icon.x size={10} />
               </button>
             </span>
           ))}
@@ -243,7 +244,7 @@ export function TimetablePage() {
                   setFilters({ instructors: filters.instructors.filter((x) => x !== i) })
                 }
               >
-                ×
+                <Icon.x size={10} />
               </button>
             </span>
           ))}
@@ -254,7 +255,7 @@ export function TimetablePage() {
                 aria-label={t("filters.removeTag")}
                 onClick={() => setFilters({ rooms: filters.rooms.filter((x) => x !== r) })}
               >
-                ×
+                <Icon.x size={10} />
               </button>
             </span>
           ))}
@@ -265,7 +266,7 @@ export function TimetablePage() {
                 aria-label={t("filters.removeTag")}
                 onClick={() => setFilters({ types: filters.types.filter((x) => x !== ty) })}
               >
-                ×
+                <Icon.x size={10} />
               </button>
             </span>
           ))}
@@ -286,7 +287,7 @@ export function TimetablePage() {
                 aria-label={t("filters.removeTag")}
                 onClick={() => setFilters({ time: { mode: "all" } })}
               >
-                ×
+                <Icon.x size={10} />
               </button>
             </span>
           )}
@@ -296,6 +297,20 @@ export function TimetablePage() {
           </button>
         </div>
       )}
+
+      <div className="sections-row">
+        <span className="lbl">{t("profile.department")}</span>
+        {(["all", "software", "network"] as DeptFilter[]).map((d) => (
+          <button
+            key={d}
+            className="chip"
+            aria-pressed={(filters.dept ?? "all") === d}
+            onClick={() => setFilters({ dept: d })}
+          >
+            {t(`dept.${d}`)}
+          </button>
+        ))}
+      </div>
 
       <div className="sections-row">
         <span className="lbl">{t("timetable.section")}</span>

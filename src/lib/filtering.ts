@@ -1,5 +1,5 @@
 import type { ClassEntry, DayNum, Filters, SectionId, SectionView } from "../types";
-import { DAY_BY_NUM, SECTION_LABELS, SUBJECTS, KIND_LABELS } from "../types";
+import { DAY_BY_NUM, SECTION_LABELS, SUBJECTS, KIND_LABELS, classDept } from "../types";
 
 /* ---------- locale-sensitive formatting (set by App each render) ---------- */
 let timeFormat: "12" | "24" = "12";
@@ -138,6 +138,10 @@ export function filterClasses(
   const q = filters.search.trim().toLowerCase();
   return classes.filter((c) => {
     if (!matchesSection(c, section)) return false;
+    if (filters.dept && filters.dept !== "all") {
+      const d = classDept(c);
+      if (d !== "both" && d !== filters.dept) return false;
+    }
     if (hidden.subjects.includes(c.subject)) return false;
     if (hidden.instructors.includes(c.instructor)) return false;
     if (hidden.days.includes(c.day)) return false;

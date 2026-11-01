@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { useStore } from "./store";
 import { I18nProvider, useT } from "./i18n";
 import { setLang, setTimeFormat } from "./lib/filtering";
@@ -9,13 +9,24 @@ import { TimetablePage } from "./pages/TimetablePage";
 import { StatisticsPage } from "./pages/StatisticsPage";
 import { SavedViewsPage } from "./pages/SavedViewsPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { AttendancePage } from "./pages/AttendancePage";
+import { OnboardingPage } from "./pages/OnboardingPage";
 import type { SectionView, DayNum } from "./types";
 
-type Route = "dashboard" | "timetable" | "stats" | "views" | "settings";
+type Route =
+  | "dashboard"
+  | "timetable"
+  | "attendance"
+  | "stats"
+  | "views"
+  | "settings"
+  | "onboarding";
 
-const ROUTES: { id: Route; hash: string; labelKey: string; icon: (p?: any) => JSX.Element }[] = [
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const ROUTES: { id: Route; hash: string; labelKey: string; icon: ComponentType<any> }[] = [
   { id: "dashboard", hash: "#/dashboard", labelKey: "nav.dashboard", icon: Icon.dashboard },
   { id: "timetable", hash: "#/timetable", labelKey: "nav.timetable", icon: Icon.calendar },
+  { id: "attendance", hash: "#/attendance", labelKey: "nav.attendance", icon: Icon.check },
   { id: "stats", hash: "#/stats", labelKey: "nav.statistics", icon: Icon.chart },
   { id: "views", hash: "#/views", labelKey: "nav.views", icon: Icon.layers },
   { id: "settings", hash: "#/settings", labelKey: "nav.settings", icon: Icon.sliders },
@@ -24,9 +35,11 @@ const ROUTES: { id: Route; hash: string; labelKey: string; icon: (p?: any) => JS
 function parseHash(): Route {
   const h = window.location.hash.replace(/^#\/?/, "").toLowerCase();
   if (h.startsWith("timetable")) return "timetable";
+  if (h.startsWith("attendance")) return "attendance";
   if (h.startsWith("stats") || h.startsWith("statistics")) return "stats";
   if (h.startsWith("views")) return "views";
   if (h.startsWith("settings")) return "settings";
+  if (h.startsWith("onboarding") || h.startsWith("profile")) return "onboarding";
   return "dashboard";
 }
 
@@ -86,18 +99,27 @@ function ShellInner() {
   const route = useStoreRoute();
   const settings = useStore((s) => s.settings);
   const theme = useStore((s) => s.theme);
+  const onboarded = useStore((s) => s.profile.onboarded);
   const resolvedTheme =
     theme ?? (window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark");
 
+  // first-time gate: force onboarding until profile exists
+  const effective: Route =
+    !onboarded && route !== "onboarding" ? "onboarding" : route;
+
   const page =
-    route === "timetable" ? (
+    effective === "onboarding" ? (
+      <OnboardingPage go={go} />
+    ) : effective === "timetable" ? (
       <TimetablePage />
-    ) : route === "stats" ? (
+    ) : effective === "attendance" ? (
+      <AttendancePage go={go} />
+    ) : effective === "stats" ? (
       <StatisticsPage />
-    ) : route === "views" ? (
+    ) : effective === "views" ? (
       <SavedViewsPage go={go} />
-    ) : route === "settings" ? (
-      <SettingsPage />
+    ) : effective === "settings" ? (
+      <SettingsPage go={go} />
     ) : (
       <DashboardPage go={go} />
     );
@@ -116,8 +138,8 @@ function ShellInner() {
           {ROUTES.map((r) => (
             <button
               key={r.id}
-              className={"nav-item" + (route === r.id ? " active" : "")}
-              aria-current={route === r.id ? "page" : undefined}
+              className={"nav-item" + (effective === r.id ? " active" : "")}
+              aria-current={effective === r.id ? "page" : undefined}
               onClick={() => go(r.hash)}
             >
               <r.icon />
@@ -162,8 +184,8 @@ function ShellInner() {
         {ROUTES.map((r) => (
           <button
             key={r.id}
-            className={route === r.id ? "active" : ""}
-            aria-current={route === r.id ? "page" : undefined}
+            className={effective === r.id ? "active" : ""}
+            aria-current={effective === r.id ? "page" : undefined}
             onClick={() => go(r.hash)}
           >
             <r.icon size={20} />

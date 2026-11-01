@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { ClassEntry, DayNum, SectionId } from "../types";
-import { DAYS, SECTION_IDS, SUBJECTS } from "../types";
+import type { ClassEntry, DayNum, Department, SectionId } from "../types";
+import { DAYS, SECTION_IDS, SUBJECTS, DEFAULT_DEPT } from "../types";
 import { classTypes, findOverlapsSafe, mins } from "../lib/formUtils";
 import { useStore } from "../store";
 import { useT } from "../i18n";
@@ -21,6 +21,7 @@ interface FormState {
   end: string;
   type: ClassEntry["type"];
   sections: SectionId[];
+  dept: Department;
   notes: string;
 }
 
@@ -41,6 +42,7 @@ export function ClassFormModal({ initial, onClose, onSaved }: Props) {
           end: initial.end,
           type: initial.type,
           sections: [...initial.sections],
+          dept: initial.dept ?? DEFAULT_DEPT[initial.subject] ?? "both",
           notes: initial.notes ?? "",
         }
       : {
@@ -52,6 +54,7 @@ export function ClassFormModal({ initial, onClose, onSaved }: Props) {
           end: "10:20",
           type: "practical",
           sections: ["2"],
+          dept: DEFAULT_DEPT[Object.keys(SUBJECTS)[0]] ?? "both",
           notes: "",
         },
   );
@@ -103,6 +106,7 @@ export function ClassFormModal({ initial, onClose, onSaved }: Props) {
       end: f.end,
       type: f.type,
       sections: f.type === "combined" ? [] : f.sections,
+      dept: f.dept,
       notes: f.notes.trim() || undefined,
     };
     if (initial) {
@@ -183,6 +187,15 @@ export function ClassFormModal({ initial, onClose, onSaved }: Props) {
                   {t(`kinds.${k}`)}
                 </option>
               ))}
+            </select>
+          </label>
+
+          <label className="field">
+            <span>{t("profile.department")}</span>
+            <select value={f.dept} onChange={(e) => set("dept", e.target.value as Department)}>
+              <option value="software">{t("dept.software")}</option>
+              <option value="network">{t("dept.network")}</option>
+              <option value="both">{t("dept.both")}</option>
             </select>
           </label>
 

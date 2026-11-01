@@ -8,6 +8,7 @@ import {
   nextClass,
   subjectColor,
 } from "../lib/filtering";
+import { applyProfile } from "../lib/personal";
 import { Icon } from "../components/Icon";
 
 export function StatisticsPage() {
@@ -17,16 +18,17 @@ export function StatisticsPage() {
   const section = useStore((s) => s.section);
   const prefs = useStore((s) => s.prefs);
 
-  const visible = useMemo(
-    () =>
-      filterClasses(classes, section, filters, {
-        subjects: prefs.hiddenSubjects,
-        instructors: prefs.hiddenInstructors,
-        days: prefs.hiddenDays,
-        hideCombined: !prefs.showCombined,
-      }),
-    [classes, section, filters, prefs],
-  );
+  const profile = useStore((s) => s.profile);
+
+  const visible = useMemo(() => {
+    const filtered = filterClasses(classes, section, filters, {
+      subjects: prefs.hiddenSubjects,
+      instructors: prefs.hiddenInstructors,
+      days: prefs.hiddenDays,
+      hideCombined: !prefs.showCombined,
+    });
+    return profile.onboarded ? applyProfile(filtered, profile) : filtered;
+  }, [classes, section, filters, prefs, profile]);
 
   const stats = computeStats(visible);
   const next = nextClass(visible);

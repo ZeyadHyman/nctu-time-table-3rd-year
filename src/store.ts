@@ -1,15 +1,17 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type {
+  AttendanceStatus,
   ClassEntry,
   DayNum,
   DisplayPrefs,
   Filters,
+  Profile,
   SavedView,
   SectionView,
   Settings,
 } from "./types";
-import { DEFAULT_PREFS, DEFAULT_SETTINGS, EMPTY_FILTERS } from "./types";
+import { DEFAULT_PREFS, DEFAULT_PROFILE, DEFAULT_SETTINGS, EMPTY_FILTERS } from "./types";
 import { SEED_CLASSES } from "./data/seed";
 import { overlaps } from "./lib/filtering";
 
@@ -21,6 +23,8 @@ interface TimetableState {
   section: SectionView;
   prefs: DisplayPrefs;
   settings: Settings;
+  profile: Profile;
+  attendance: Record<string, AttendanceStatus>;
   savedViews: SavedView[];
   activeViewId: string | null;
   editMode: boolean;
@@ -34,6 +38,9 @@ interface TimetableState {
   resetSettings: () => void;
   setEditMode: (on: boolean) => void;
   setTheme: (t: "dark" | "light" | null) => void;
+  setProfile: (p: Partial<Profile>) => void;
+  setAttendance: (week: string, classId: string, status: AttendanceStatus | null) => void;
+  clearAttendance: () => void;
 
   addClass: (c: Omit<ClassEntry, "id">) => ClassEntry;
   updateClass: (id: string, patch: Partial<Omit<ClassEntry, "id">>) => void;
@@ -70,6 +77,8 @@ export const useStore = create<TimetableState>()(
       section: "full",
       prefs: { ...DEFAULT_PREFS },
       settings: { ...DEFAULT_SETTINGS },
+      profile: { ...DEFAULT_PROFILE },
+      attendance: {},
       savedViews: [],
       activeViewId: null,
       editMode: false,
@@ -100,6 +109,16 @@ export const useStore = create<TimetableState>()(
         set((s) => ({
           settings: { ...DEFAULT_SETTINGS, language: s.settings.language },
         })),
+      setProfile: (partial) => set((s) => ({ profile: { ...s.profile, ...partial } })),
+      setAttendance: (week, classId, status) =>
+        set((s) => {
+          const key = `${week}:${classId}`;
+          const next = { ...s.attendance };
+          if (status === null) delete next[key];
+          else next[key] = status;
+          return { attendance: next };
+        }),
+      clearAttendance: () => set({ attendance: {} }),
       setEditMode: (editMode) => set({ editMode }),
       setTheme: (theme) => set({ theme }),
 
@@ -202,6 +221,8 @@ export const useStore = create<TimetableState>()(
         section: s.section,
         prefs: s.prefs,
         settings: s.settings,
+        profile: s.profile,
+        attendance: s.attendance,
         savedViews: s.savedViews,
         activeViewId: s.activeViewId,
         theme: s.theme,
@@ -214,6 +235,8 @@ export const useStore = create<TimetableState>()(
           settings: { ...DEFAULT_SETTINGS, ...(p.settings ?? {}) },
           prefs: { ...DEFAULT_PREFS, ...(p.prefs ?? {}) },
           filters: { ...EMPTY_FILTERS, ...(p.filters ?? {}) },
+          profile: { ...DEFAULT_PROFILE, ...(p.profile ?? {}) },
+          attendance: { ...(p.attendance ?? {}) },
           editMode: false,
           canUndo: false,
         };

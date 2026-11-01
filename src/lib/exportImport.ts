@@ -73,6 +73,10 @@ export function validateClasses(
       end: c.end,
       type: c.type as ClassEntry["type"],
       sections: c.sections as ClassEntry["sections"],
+      dept:
+        c.dept === "software" || c.dept === "network" || c.dept === "both"
+          ? (c.dept as ClassEntry["dept"])
+          : undefined,
       notes: typeof c.notes === "string" ? c.notes : undefined,
     });
   }
@@ -108,6 +112,7 @@ function emptyFilters(): Filters {
     types: [],
     time: { mode: "all" },
     search: "",
+    dept: "all",
   };
 }
 
